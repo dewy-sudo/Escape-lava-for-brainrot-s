@@ -1,132 +1,104 @@
--- Deobfuscated with MoonSec V3 Deobfuscator Tool
--- Original script had 1 lines and 74680 characters
-
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
+-- CELESTIAL HUB - FIX & MERGED VERSION
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
--- Main configuration
-local CONFIG = {
-    speed = 18,
-    jumpPower = 129,
-    maxHealth = 174,
-    respawnTime = 10,
-    debugMode = false
-}
-
--- Event connections
-local remotes = ReplicatedStorage:WaitForChild("Remotes")
-local damageEvent = remotes:WaitForChild("DamageEvent")
-local healEvent = remotes:WaitForChild("HealEvent")
-local respawnEvent = remotes:WaitForChild("RespawnEvent")
-
--- Weapon definitions extracted from obfuscated table
-local weapons = {
-    {
-        name = "Sword",
-        damage = 15,
-        cooldown = 0.8,
-        range = 4
-    },
-    {
-        name = "Bow",
-        damage = 10,
-        cooldown = 1.2,
-        range = 30
-    },
-    {
-        name = "Staff",
-        damage = 25,
-        cooldown = 2.5,
-        range = 15
-    }
-}
-
--- Utility functions
-local function calculateDamage(baseDamage, distance, player)
-    local character = player.Character
-    if not character then return 0 end
-    
-    local modifier = 1
-    
-    -- Apply damage falloff based on distance
-    if distance > 10 then
-        modifier = modifier * (1 - (distance - 10) * 0.02)
-    end
-    
-    -- Apply random variation
-    modifier = modifier * (math.random() * 0.2 + 0.9)
-    
-    return math.floor(baseDamage * modifier)
+-- Előző verziók takarítása
+if CoreGui:FindFirstChild("CelestialCheat") then
+    CoreGui.CelestialCheat:Destroy()
 end
 
--- Player handling
-local function setupPlayer(player)
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    humanoid.WalkSpeed = CONFIG.speed
-    humanoid.JumpPower = CONFIG.jumpPower
-    humanoid.MaxHealth = CONFIG.maxHealth
-    humanoid.Health = CONFIG.maxHealth
-    
-    -- Setup damage handling
-    damageEvent.OnServerEvent:Connect(function(playerWhoFired, targetPlayer, damageAmount, weaponIndex)
-        if playerWhoFired ~= player then return end
-        if not targetPlayer or not targetPlayer.Character then return end
-        
-        local weapon = weapons[weaponIndex or 1]
-        if not weapon then return end
-        
-        local targetHumanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-        if targetHumanoid then
-            local playerPosition = player.Character.PrimaryPart.Position
-            local targetPosition = targetPlayer.Character.PrimaryPart.Position
-            local distance = (playerPosition - targetPosition).Magnitude
-            
-            if distance <= weapon.range then
-                local finalDamage = calculateDamage(damageAmount or weapon.damage, distance, targetPlayer)
-                targetHumanoid.Health = math.max(0, targetHumanoid.Health - finalDamage)
-                
-                -- Fire client effects
-                remotes.DamageEffect:FireClient(targetPlayer, finalDamage)
-            end
-        end
+-- Fő UI létrehozása (A te kódod alapján)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CelestialCheat"
+ScreenGui.Parent = CoreGui
+ScreenGui.IgnoreGuiInset = true
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 550, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Parent = ScreenGui
+
+local MCorner = Instance.new("UICorner")
+MCorner.CornerRadius = UDim.new(0, 10)
+MCorner.Parent = MainFrame
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TitleBar.Parent = MainFrame
+
+local Container = Instance.new("ScrollingFrame")
+Container.Size = UDim2.new(1, -20, 1, -60)
+Container.Position = UDim2.new(0, 10, 0, 50)
+Container.BackgroundTransparency = 1
+Container.ScrollBarThickness = 0
+Container.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = Container
+UIList.Padding = UDim.new(0, 8)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- GOMB FUNKCIÓ
+local function AddCheatButton(hu, en, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0.95, 0, 0, 50)
+    Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    Btn.Text = hu .. " / " .. en
+    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Btn.Font = Enum.Font.GothamMedium
+    Btn.TextSize = 15
+    Btn.Parent = Container
+
+    local BC = Instance.new("UICorner")
+    BC.CornerRadius = UDim.new(0, 6)
+    BC.Parent = Btn
+
+    local toggled = false
+    Btn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        callback(toggled)
+        local targetColor = toggled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(35, 35, 35)
+        TweenService:Create(Btn, TweenInfo.new(0.3), {BackgroundColor3 = targetColor}):Play()
     end)
-}
-
--- Initialize for existing players
-for _, player in ipairs(Players:GetPlayers()) do
-    setupPlayer(player)
 end
 
--- Setup for new players
-Players.PlayerAdded:Connect(setupPlayer)
-
--- Game loop (extracted from obfuscated while loop)
-RunService.Heartbeat:Connect(function(deltaTime)
-    for _, player in ipairs(Players:GetPlayers()) do
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            -- Update player status
-            -- This section was heavily obfuscated and may not be 100% accurate
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid.Health <= 0 then
-                -- Handle player death
-                if not character:FindFirstChild("Respawning") then
-                    local respawning = Instance.new("BoolValue")
-                    respawning.Name = "Respawning"
-                    respawning.Parent = character
-                    
-                    -- Respawn player after delay
-                    task.delay(CONFIG.respawnTime, function()
-                        respawnEvent:FireClient(player)
-                    end)
-                end
-            end
-        end
+-- INTEGRÁLT FUNKCIÓK (A haverod értékeivel: 18 speed, 129 jump)
+AddCheatButton("Szuper Sebesség", "Speed Hack", function(state)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = state and 18 or 16
     end
 end)
 
--- Extra note: Some weapon system functions couldn't be fully deobfuscated
--- Original code had additional logic in lines 0-0
+AddCheatButton("Szuper Ugrás", "Super Jump", function(state)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.JumpPower = state and 129 or 50
+    end
+end)
+
+-- DRAG (Mozgatás - A te kódod)
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
