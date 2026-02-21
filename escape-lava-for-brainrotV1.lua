@@ -1,127 +1,153 @@
--- CELESTIAL HUB - EXECUTOR VERSION (FIXED & INTEGRATED)
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage") -- Fontos fix!
-local LocalPlayer = Players.LocalPlayer
+-- ==========================================
+-- A TE EREDETI RENDSZERED (ÉRINTETLEN)
+-- ==========================================
 
--- Előző verziók takarítása
-if CoreGui:FindFirstChild("CelestialCheat") then
-    CoreGui.CelestialCheat:Destroy()
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Main configuration
+local CONFIG = {
+    speed = 18,
+    jumpPower = 129,
+    maxHealth = 174,
+    respawnTime = 10,
+    debugMode = false
+}
+
+-- Event connections
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local damageEvent = remotes:WaitForChild("DamageEvent")
+local healEvent = remotes:WaitForChild("HealEvent")
+local respawnEvent = remotes:WaitForChild("RespawnEvent")
+
+-- Weapon definitions
+local weapons = {
+    { name = "Sword", damage = 15, cooldown = 0.8, range = 4 },
+    { name = "Bow", damage = 10, cooldown = 1.2, range = 30 },
+    { name = "Staff", damage = 25, cooldown = 2.5, range = 15 }
+}
+
+-- Utility functions
+local function calculateDamage(baseDamage, distance, player)
+    local character = player.Character
+    if not character then return 0 end
+    local modifier = 1
+    if distance > 10 then
+        modifier = modifier * (1 - (distance - 10) * 0.02)
+    end
+    modifier = modifier * (math.random() * 0.2 + 0.9)
+    return math.floor(baseDamage * modifier)
 end
 
--- Fő tároló
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CelestialCheat"
-ScreenGui.Parent = CoreGui
-ScreenGui.IgnoreGuiInset = true
-
--- PANEL LÉTREHOZÁSA
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 550, 0, 420) -- Kicsit nagyobb, hogy elférjen az Auto
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -210)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
-
-local MCorner = Instance.new("UICorner")
-MCorner.CornerRadius = UDim.new(0, 10)
-MCorner.Parent = MainFrame
-
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-TitleBar.Parent = MainFrame
-
-local TitleText = Instance.new("TextLabel")
-TitleText.Text = " CELESTIAL HUB | V1.2 - AUTO & SECRET"
-TitleText.Size = UDim2.new(1, -50, 1, 0)
-TitleText.Position = UDim2.new(0, 15, 0, 0)
-TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.Font = Enum.Font.GothamBold
-TitleText.BackgroundTransparency = 1
-TitleText.Parent = TitleBar
-
-local Container = Instance.new("ScrollingFrame")
-Container.Size = UDim2.new(1, -20, 1, -60)
-Container.Position = UDim2.new(0, 10, 0, 50)
-Container.BackgroundTransparency = 1
-Container.ScrollBarThickness = 0
-Container.Parent = MainFrame
-
-local UIList = Instance.new("UIListLayout")
-UIList.Parent = Container
-UIList.Padding = UDim.new(0, 8)
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- GOMB FUNKCIÓ
-local function AddCheatButton(hu, en, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(0.95, 0, 0, 50)
-    Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    Btn.Text = hu .. " / " .. en
-    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Btn.Font = Enum.Font.GothamMedium
-    Btn.TextSize = 15
-    Btn.AutoButtonColor = false
-    Btn.Parent = Container
-
-    local BC = Instance.new("UICorner")
-    BC.CornerRadius = UDim.new(0, 6)
-    BC.Parent = Btn
-
-    local toggled = false
-    Btn.MouseButton1Click:Connect(function()
-        toggled = not toggled
-        callback(toggled)
-        local targetColor = toggled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(35, 35, 35)
-        TweenService:Create(Btn, TweenInfo.new(0.3), {BackgroundColor3 = targetColor}):Play()
+-- Player handling
+local function setupPlayer(player)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    humanoid.WalkSpeed = CONFIG.speed
+    humanoid.JumpPower = CONFIG.jumpPower
+    humanoid.MaxHealth = CONFIG.maxHealth
+    humanoid.Health = CONFIG.maxHealth
+    
+    damageEvent.OnServerEvent:Connect(function(playerWhoFired, targetPlayer, damageAmount, weaponIndex)
+        if playerWhoFired ~= player then return end
+        if not targetPlayer or not targetPlayer.Character then return end
+        
+        local weapon = weapons[weaponIndex or 1]
+        if not weapon then return end
+        
+        local targetHumanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+        if targetHumanoid then
+            local playerPosition = player.Character.PrimaryPart.Position
+            local targetPosition = targetPlayer.Character.PrimaryPart.Position
+            local distance = (playerPosition - targetPosition).Magnitude
+            
+            if distance <= weapon.range then
+                local finalDamage = calculateDamage(damageAmount or weapon.damage, distance, targetPlayer)
+                targetHumanoid.Health = math.max(0, targetHumanoid.Health - finalDamage)
+                remotes.DamageEffect:FireClient(targetPlayer, finalDamage)
+            end
+        end
     end)
 end
 
---- AUTO RENDSZER LOGIKA (A HAVEROD KÓDJÁBÓL) ---
-local AutoKillLoop = nil
-local function StartAutoSystem(state)
-    if state then
-        AutoKillLoop = RunService.Heartbeat:Connect(function()
-            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-            if remotes and remotes:FindFirstChild("DamageEvent") then
-                for _, enemy in pairs(Players:GetPlayers()) do
-                    if enemy ~= LocalPlayer and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                        if enemy.Character.Humanoid.Health > 0 then
-                            -- Itt küldi el a sebzést a szervernek (Haverod logikája)
-                            remotes.DamageEvent:FireServer(enemy, 15, 1) -- Sword sebzés
-                        end
-                    end
+for _, player in ipairs(Players:GetPlayers()) do setupPlayer(player) end
+Players.PlayerAdded:Connect(setupPlayer)
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid.Health <= 0 then
+                if not character:FindFirstChild("Respawning") then
+                    local respawning = Instance.new("BoolValue")
+                    respawning.Name = "Respawning"
+                    respawning.Parent = character
+                    task.delay(CONFIG.respawnTime, function()
+                        respawnEvent:FireClient(player)
+                    end)
                 end
             end
-        end)
-    else
-        if AutoKillLoop then AutoKillLoop:Disconnect() end
-    end
-end
-
--- GOMBOK BEKÖTÉSE (Minden benne van!)
-AddCheatButton("Szuper Sebesség", "Speed Hack", function(s) 
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = s and 18 or 16 
+        end
     end
 end)
 
-AddCheatButton("Szuper Ugrás", "Super Jump", function(s) 
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.JumpPower = s and 129 or 50 
-    end
-end)
+-- ==========================================
+-- ÚJ, ANIMÁLT MAGYAR GUI RÉSZ
+-- ==========================================
 
-AddCheatButton("Celestial Auto Farm", "Secret System", function(s)
-    StartAutoSystem(s)
-end)
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- DRAG & DROP (Mozgatás)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ModernExecutorGUI"
+ScreenGui.Parent = playerGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 350, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -110)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 160, 255)
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.5
+UIStroke.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "  MAGYAR EXECUTOR V1"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.Parent = MainFrame
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0.9, 0, 0.6, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.25, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Állapot: [ AKTÍV ]\n\nSebesség: " .. CONFIG.speed .. "\nUgrás: " .. CONFIG.jumpPower .. "\nÉleterő: " .. CONFIG.maxHealth .. "\nRespawn: " .. CONFIG.respawnTime .. " mp"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.Font = Enum.Font.GothamMedium
+StatusLabel.TextSize = 14
+StatusLabel.TextYAlignment = Enum.TextYAlignment.Top
+StatusLabel.Parent = MainFrame
+
+-- Húzható funkció
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -130,12 +156,20 @@ MainFrame.InputBegan:Connect(function(input)
         startPos = MainFrame.Position
     end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-UserInputService.InputEnded:Connect(function(input)
+
+MainFrame.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
+
+-- Beúszó Animáció
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame:TweenSize(UDim2.new(0, 350, 0, 220), "Out", "Back", 0.6, true)
+
+print("Rendszer és GUI sikeresen betöltve!")
