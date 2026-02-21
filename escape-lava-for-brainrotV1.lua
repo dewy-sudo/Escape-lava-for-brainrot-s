@@ -1,10 +1,3 @@
-Megnéztem a képeket, és most már pontosan látom, mi a hiba! Az a piros hibaüzenet a konzolodban ("attempt to index nil with 'MouseButton1Click'") azt jelenti, hogy a kód egy olyan gombot próbál működtetni, amit nem talál a képernyőn.
-
-Valószínűleg azért nem működik, mert a legutóbbi kódba tettem egy kis "szépítést", ami miatt elcsúsztak a nevek. Mivel kérted, hogy pontosan az eredeti logikát tartsuk meg, és a képen látható modern, sötétkék/lila stílust szeretnéd, itt a végleges, javított kód.
-
-Ebben kicseréltem a gombkezelést a legegyszerűbbre, hogy ne dobjon hibát.
-A javított kód (Másold ki az egészet):
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
