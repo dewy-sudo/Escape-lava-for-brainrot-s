@@ -1,9 +1,10 @@
--- CELESTIAL HUB - FIX & MERGED VERSION
+-- CELESTIAL HUB - EXECUTOR VERSION (FIXED & INTEGRATED)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage") -- Fontos fix!
 local LocalPlayer = Players.LocalPlayer
 
 -- Előző verziók takarítása
@@ -11,17 +12,19 @@ if CoreGui:FindFirstChild("CelestialCheat") then
     CoreGui.CelestialCheat:Destroy()
 end
 
--- Fő UI létrehozása (A te kódod alapján)
+-- Fő tároló
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CelestialCheat"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
 
+-- PANEL LÉTREHOZÁSA
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 550, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -190)
+MainFrame.Size = UDim2.new(0, 550, 0, 420) -- Kicsit nagyobb, hogy elférjen az Auto
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local MCorner = Instance.new("UICorner")
@@ -32,6 +35,15 @@ local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 TitleBar.Parent = MainFrame
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Text = " CELESTIAL HUB | V1.2 - AUTO & SECRET"
+TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Position = UDim2.new(0, 15, 0, 0)
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.BackgroundTransparency = 1
+TitleText.Parent = TitleBar
 
 local Container = Instance.new("ScrollingFrame")
 Container.Size = UDim2.new(1, -20, 1, -60)
@@ -54,6 +66,7 @@ local function AddCheatButton(hu, en, callback)
     Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
     Btn.Font = Enum.Font.GothamMedium
     Btn.TextSize = 15
+    Btn.AutoButtonColor = false
     Btn.Parent = Container
 
     local BC = Instance.new("UICorner")
@@ -69,22 +82,46 @@ local function AddCheatButton(hu, en, callback)
     end)
 end
 
--- INTEGRÁLT FUNKCIÓK (A haverod értékeivel: 18 speed, 129 jump)
-AddCheatButton("Szuper Sebesség", "Speed Hack", function(state)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.WalkSpeed = state and 18 or 16
+--- AUTO RENDSZER LOGIKA (A HAVEROD KÓDJÁBÓL) ---
+local AutoKillLoop = nil
+local function StartAutoSystem(state)
+    if state then
+        AutoKillLoop = RunService.Heartbeat:Connect(function()
+            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            if remotes and remotes:FindFirstChild("DamageEvent") then
+                for _, enemy in pairs(Players:GetPlayers()) do
+                    if enemy ~= LocalPlayer and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                        if enemy.Character.Humanoid.Health > 0 then
+                            -- Itt küldi el a sebzést a szervernek (Haverod logikája)
+                            remotes.DamageEvent:FireServer(enemy, 15, 1) -- Sword sebzés
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if AutoKillLoop then AutoKillLoop:Disconnect() end
+    end
+end
+
+-- GOMBOK BEKÖTÉSE (Minden benne van!)
+AddCheatButton("Szuper Sebesség", "Speed Hack", function(s) 
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = s and 18 or 16 
     end
 end)
 
-AddCheatButton("Szuper Ugrás", "Super Jump", function(state)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.JumpPower = state and 129 or 50
+AddCheatButton("Szuper Ugrás", "Super Jump", function(s) 
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = s and 129 or 50 
     end
 end)
 
--- DRAG (Mozgatás - A te kódod)
+AddCheatButton("Celestial Auto Farm", "Secret System", function(s)
+    StartAutoSystem(s)
+end)
+
+-- DRAG & DROP (Mozgatás)
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
